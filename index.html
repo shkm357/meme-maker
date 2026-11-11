@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>짤 생성기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Do+Hyeon&family=Jua&family=Gaegu:wght@700&family=Nanum+Pen+Script&family=Gowun+Dodum&family=Nanum+Myeongjo:wght@800&family=Noto+Sans+KR:wght@400;700;900&family=Yeon+Sung&family=Dongle:wght@700&family=Hi+Melody&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f5f2; --panel:#ffffff; --ink:#1d1d1f; --sub:#6b6b70; --line:#e4e2dd;
+    --accent:#ff5a36; --accent-ink:#fff; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;}
+  header{padding:22px 24px 8px;max-width:1180px;margin:0 auto;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  header h1{font-family:"Black Han Sans",sans-serif;font-weight:400;font-size:30px;margin:0;letter-spacing:.5px}
+  header p{margin:0;color:var(--sub);font-size:14px}
+  main{max-width:1180px;margin:0 auto;padding:12px 24px 40px;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px;align-items:start}
+  @media (max-width:860px){main{grid-template-columns:1fr}}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;position:sticky;top:12px}
+  @media (max-width:860px){.stage{position:static}}
+  .canvas-wrap{position:relative;display:flex;justify-content:center;align-items:center;min-height:320px;
+    background:repeating-conic-gradient(#efeeea 0 25%, #f8f7f4 0 50%) 0 0/20px 20px;border-radius:10px;overflow:hidden}
+  canvas{display:block;max-width:100%;max-height:72vh;height:auto;cursor:grab;touch-action:none}
+  canvas.dragging{cursor:grabbing}
+  .canvas-wrap.drop{outline:3px dashed var(--accent);outline-offset:-8px}
+  .hint{font-size:12.5px;color:var(--sub);margin-top:10px;text-align:center}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:18px}
+  .field label.t{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:8px}
+  .field label.t span{font-weight:400;color:var(--sub);font-variant-numeric:tabular-nums}
+  .upload{display:flex;gap:8px}
+  .btn{appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:10px 14px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:transform .05s, background .15s}
+  .btn:hover{background:#faf9f7}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);width:100%;padding:14px;font-size:15px}
+  .btn.primary:hover{background:#f04c28}
+  .btn.grow{flex:1}
+  textarea{width:100%;min-height:76px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:15px;background:#fff;color:var(--ink)}
+  textarea:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+  select{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;background:#fff;color:var(--ink)}
+  .fonts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .font-opt{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;cursor:pointer;font-size:17px;text-align:left;line-height:1.2;color:var(--ink)}
+  .font-opt small{display:block;font-family:"Noto Sans KR",sans-serif;font-size:11px;color:var(--sub);margin-top:2px}
+  .font-opt.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .swatches{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .sw{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}
+  .sw.on{box-shadow:0 0 0 2px var(--accent)}
+  .picker{position:relative;width:30px;height:30px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 1px var(--line);background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)}
+  .picker input{position:absolute;inset:-6px;width:42px;height:42px;opacity:0;cursor:pointer}
+  .row{display:flex;gap:10px;align-items:center}
+  .chk{display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer;user-select:none}
+  .chk input{accent-color:var(--accent);width:16px;height:16px}
+  .align{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .align button{flex:1;border:0;background:#fff;padding:8px;font-size:13px;cursor:pointer;color:var(--ink)}
+  .align button+button{border-left:1px solid var(--line)}
+  .align button.on{background:var(--ink);color:#fff}
+  .sub{font-size:12px;color:var(--sub)}
+  .divider{height:1px;background:var(--line);margin:0 -18px}
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+  .modal.show{display:flex}
+  .modal .box{background:#fff;border-radius:14px;padding:16px;max-width:min(720px,100%);max-height:100%;overflow:auto;text-align:center}
+  .modal img{max-width:100%;max-height:65vh;border-radius:8px}
+  .modal p{font-size:14px;color:var(--sub);margin:10px 0}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>짤 생성기</h1>
+  <p>사진 올리고 → 문구 넣고 → PNG로 저장</p>
+</header>
+
+<main>
+  <section class="stage">
+    <div class="canvas-wrap" id="wrap">
+      <canvas id="cv" width="1000" height="750" aria-label="짤 미리보기"></canvas>
+    </div>
+    <div class="hint">사진을 여기로 끌어다 놓거나 붙여넣기(Ctrl+V)도 됩니다 · 글자를 직접 드래그해서 옮길 수 있어요</div>
+  </section>
+
+  <aside class="panel">
+    <div class="field">
+      <label class="t">사진</label>
+      <div class="upload">
+        <button class="btn grow" id="pickBtn">📷 사진 선택</button>
+        <button class="btn" id="clearBtn" title="사진 지우기">지우기</button>
+      </div>
+      <input type="file" id="file" accept="image/*" hidden>
+    </div>
+
+    <div class="field">
+      <label class="t" for="text">넣을 문구</label>
+      <textarea id="text" placeholder="여기에 문구 입력 (엔터로 줄바꿈)">퇴근하고 싶다</textarea>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label class="t">① 폰트</label>
+      <div class="fonts" id="fonts"></div>
+    </div>
+
+    <div class="field">
+      <label class="t" for="size">② 글씨 크기 <span id="sizeV"></span></label>
+      <input type="range" id="size" min="2" max="30" step="0.5" value="10">
+    </div>
+
+    <div class="field">
+      <label class="t" for="y">③ 세로 위치 <span id="yV"></span></label>
+      <input type="range" id="y" min="0" max="100" step="0.5" value="85">
+    </div>
+
+    <div class="field">
+      <label class="t" for="x">④ 가로 위치 <span id="xV"></span></label>
+      <input type="range" id="x" min="0" max="100" step="0.5" value="50">
+      <div class="row" style="margin-top:8px">
+        <div class="align" id="align" style="flex:1">
+          <button data-a="left">왼쪽 정렬</button>
+          <button data-a="center" class="on">가운데</button>
+          <button data-a="right">오른쪽 정렬</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="t">⑤ 글씨 색깔 <span id="colorV"></span></label>
+      <div class="swatches" id="swatches"></div>
+      <div class="row" style="margin-top:12px;justify-content:space-between">
+        <label class="chk"><input type="checkbox" id="stroke" checked> 테두리</label>
+        <label class="chk">테두리 색 <span class="picker" style="width:24px;height:24px;background:#000" id="strokeSw"><input type="color" id="strokeColor" value="#000000"></span></label>
+        <label class="chk"><input type="checkbox" id="shadow"> 그림자</label>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <button class="btn primary" id="saveBtn">PNG 이미지 다운로드</button>
+    <div class="sub" style="text-align:center;margin-top:-8px">원본 사진 해상도 그대로 저장됩니다</div>
+  </aside>
+</main>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <img id="outImg" alt="완성된 짤">
+    <p>이미지를 길게 누르거나(모바일) 우클릭 → "이미지를 다른 이름으로 저장"으로 저장하세요.</p>
+    <div class="row" style="justify-content:center">
+      <button class="btn" id="copyBtn">클립보드에 복사</button>
+      <button class="btn" id="closeModal">닫기</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const MAX_SIDE = 2400;
+
+  const FONTS = [
+    {f:'Black Han Sans', w:'400', n:'검은고딕'},
+    {f:'Do Hyeon', w:'400', n:'도현'},
+    {f:'Jua', w:'400', n:'주아'},
+    {f:'Noto Sans KR', w:'900', n:'본고딕 Black'},
+    {f:'Gaegu', w:'700', n:'개구'},
+    {f:'Nanum Pen Script', w:'400', n:'나눔손글씨 펜'},
+    {f:'Dongle', w:'700', n:'동글'},
+    {f:'Hi Melody', w:'400', n:'하이멜로디'},
+    {f:'Yeon Sung', w:'400', n:'연성'},
+    {f:'Gowun Dodum', w:'400', n:'고운돋움'},
+    {f:'Nanum Myeongjo', w:'800', n:'나눔명조'},
+  ];
+  const COLORS = ['#ffffff','#000000','#ffe14d','#ff4d4d','#ff8fb1','#4dd2ff','#62e07a','#b48cff'];
+
+  const st = {
+    img: null,
+    text: $('text').value,
+    font: FONTS[0],
+    size: 10,       // % of image width
+    x: 50, y: 85,   // %
+    align: 'center',
+    color: '#ffffff',
+    stroke: true, strokeColor: '#000000',
+    shadow: false,
+  };
+
+  // ---------- UI build ----------
+  const fontsEl = $('fonts');
+  FONTS.forEach((ft, i) => {
+    const b = document.createElement('button');
+    b.className = 'font-opt' + (i === 0 ? ' on' : '');
+    b.style.fontFamily = `"${ft.f}"`;
+    b.style.fontWeight = ft.w;
+    b.innerHTML = `가나다 짤<small>${ft.n}</small>`;
+    b.onclick = async () => {
+      fontsEl.querySelectorAll('.font-opt').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      st.font = ft;
+      await ensureFont(ft);
+      draw();
+    };
+    fontsEl.appendChild(b);
+  });
+
+  const swEl = $('swatches');
+  COLORS.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'sw' + (i === 0 ? ' on' : '');
+    b.style.background = c;
+    b.title = c;
+    b.onclick = () => setColor(c);
+    swEl.appendChild(b);
+  });
+  const pk = document.createElement('label');
+  pk.className = 'picker'; pk.title = '직접 고르기';
+  pk.innerHTML = '<input type="color" id="colorPick" value="#ffffff">';
+  swEl.appendChild(pk);
+  $('colorPick').addEventListener('input', e => setColor(e.target.value, true));
+
+  function setColor(c, custom) {
+    st.color = c;
+    swEl.querySelectorAll('.sw').forEach(s => s.classList.toggle('on', !custom && s.title === c));
+    pk.style.boxShadow = custom ? '0 0 0 2px var(--accent)' : '';
+    if (custom) pk.style.background = c; else pk.style.background = '';
+    draw();
+  }
+
+  const bindRange = (id, key, fmt) => {
+    const el = $(id), v = $(id + 'V');
+    const upd = () => { st[key] = parseFloat(el.value); v.textContent = fmt(st[key]); draw(); };
+    el.addEventListener('input', upd);
+    v.textContent = fmt(st[key]);
+  };
+  bindRange('size', 'size', v => v + '%');
+  bindRange('y', 'y', v => v === 0 ? '맨 위' : v === 100 ? '맨 아래' : v + '%');
+  bindRange('x', 'x', v => v === 0 ? '맨 왼쪽' : v === 100 ? '맨 오른쪽' : v + '%');
+  $('colorV').textContent = '';
+
+  $('text').addEventListener('input', e => { st.text = e.target.value; draw(); });
+  $('stroke').addEventListener('change', e => { st.stroke = e.target.checked; draw(); });
+  $('shadow').addEventListener('change', e => { st.shadow = e.target.checked; draw(); });
+  $('strokeColor').addEventListener('input', e => { st.strokeColor = e.target.value; $('strokeSw').style.background = e.target.value; draw(); });
+  $('align').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    $('align').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    st.align = b.dataset.a; draw();
+  });
+
+  // ---------- image loading ----------
+  $('pickBtn').onclick = () => $('file').click();
+  $('file').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); e.target.value = ''; });
+  $('clearBtn').onclick = () => { st.img = null; setCanvasSize(1000, 750); draw(); };
+
+  const wrap = $('wrap');
+  ['dragenter','dragover'].forEach(ev => wrap.addEventListener(ev, e => { e.preventDefault(); wrap.classList.add('drop'); }));
+  ['dragleave','drop'].forEach(ev => wrap.addEventListener(ev, e => { e.preventDefault(); wrap.classList.remove('drop'); }));
+  wrap.addEventListener('drop', e => { const f = [...e.dataTransfer.files].find(f => f.type.startsWith('image/')); if (f) loadFile(f); });
+  window.addEventListener('paste', e => {
+    const it = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+    if (it) { loadFile(it.getAsFile()); e.preventDefault(); }
+  });
+
+  function loadFile(file) {
+    const url = URL.createObjectURL(file);
+    const im = new Image();
+    im.onload = () => {
+      st.img = im;
+      let w = im.naturalWidth, h = im.naturalHeight;
+      const s = Math.min(1, MAX_SIDE / Math.max(w, h));
+      setCanvasSize(Math.round(w * s), Math.round(h * s));
+      draw();
+      toast('사진을 불러왔어요');
+    };
+    im.onerror = () => toast('이 파일은 열 수 없어요');
+    im.src = url;
+  }
+  function setCanvasSize(w, h) { cv.width = w; cv.height = h; }
+
+  // ---------- fonts ----------
+  const loaded = new Set();
+  async function ensureFont(ft) {
+    const key = ft.f + ft.w;
+    if (loaded.has(key)) return;
+    try { await document.fonts.load(`${ft.w} 40px "${ft.f}"`, '가나다ABC'); } catch (e) {}
+    loaded.add(key);
+  }
+
+  // ---------- drawing ----------
+  let lastBox = null;
+  function draw() {
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+    if (st.img) {
+      ctx.drawImage(st.img, 0, 0, W, H);
+    } else {
+      const g = ctx.createLinearGradient(0, 0, W, H);
+      g.addColorStop(0, '#5b6474'); g.addColorStop(1, '#2e333d');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(255,255,255,.55)';
+      ctx.font = `700 ${W * 0.04}px "Noto Sans KR", sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('📷  사진을 올려주세요', W / 2, H * 0.4);
+    }
+
+    const lines = st.text.split('\n');
+    if (!st.text.trim()) { lastBox = null; return; }
+
+    const fs = Math.max(8, W * st.size / 100);
+    ctx.font = `${st.font.w} ${fs}px "${st.font.f}", "Noto Sans KR", sans-serif`;
+    ctx.textAlign = st.align;
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+
+    const lh = fs * 1.2;
+    const widths = lines.map(l => ctx.measureText(l).width);
+    const blockW = Math.max(...widths), blockH = lh * lines.length;
+
+    // anchor point; keep the whole block inside the image
+    let ax = W * st.x / 100, ay = H * st.y / 100;
+    const pad = W * 0.02;
+    const leftEdge = st.align === 'left' ? ax : st.align === 'right' ? ax - blockW : ax - blockW / 2;
+    let shiftX = 0;
+    if (blockW + pad * 2 <= W) {
+      if (leftEdge < pad) shiftX = pad - leftEdge;
+      else if (leftEdge + blockW > W - pad) shiftX = (W - pad) - (leftEdge + blockW);
+    } else shiftX = (W - blockW) / 2 - leftEdge;
+    ax += shiftX;
+    let top = ay - blockH / 2;
+    if (blockH + pad * 2 <= H) {
+      if (top < pad) top = pad;
+      else if (top + blockH > H - pad) top = H - pad - blockH;
+    }
+
+    lines.forEach((l, i) => {
+      const ly = top + lh * i + lh / 2;
+      if (st.shadow) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,.55)';
+        ctx.shadowBlur = fs * 0.25; ctx.shadowOffsetX = fs * 0.06; ctx.shadowOffsetY = fs * 0.08;
+        ctx.fillStyle = st.color; ctx.fillText(l, ax, ly);
+        ctx.restore();
+      }
+      if (st.stroke) {
+        ctx.lineWidth = Math.max(2, fs * 0.14);
+        ctx.strokeStyle = st.strokeColor;
+        ctx.strokeText(l, ax, ly);
+      }
+      ctx.fillStyle = st.color;
+      ctx.fillText(l, ax, ly);
+    });
+
+    const bl = st.align === 'left' ? ax : st.align === 'right' ? ax - blockW : ax - blockW / 2;
+    lastBox = { x: bl, y: top, w: blockW, h: blockH };
+  }
+
+  // ---------- drag text on canvas ----------
+  let drag = null;
+  const toCanvas = e => {
+    const r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height };
+  };
+  cv.addEventListener('pointerdown', e => {
+    const p = toCanvas(e);
+    if (lastBox) {
+      const m = cv.width * 0.03;
+      const inside = p.x > lastBox.x - m && p.x < lastBox.x + lastBox.w + m && p.y > lastBox.y - m && p.y < lastBox.y + lastBox.h + m;
+      if (!inside && !st.img) { $('file').click(); return; }
+      if (!inside) return;
+    } else if (!st.img) { $('file').click(); return; }
+    drag = { sx: p.x, sy: p.y, x0: st.x, y0: st.y };
+    cv.setPointerCapture(e.pointerId);
+    cv.classList.add('dragging');
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const p = toCanvas(e);
+    st.x = clamp(drag.x0 + (p.x - drag.sx) / cv.width * 100);
+    st.y = clamp(drag.y0 + (p.y - drag.sy) / cv.height * 100);
+    $('x').value = st.x; $('y').value = st.y;
+    $('x').dispatchEvent(new Event('input'));
+    $('y').dispatchEvent(new Event('input'));
+  });
+  const end = () => { drag = null; cv.classList.remove('dragging'); };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  const clamp = v => Math.round(Math.min(100, Math.max(0, v)) * 2) / 2;
+
+  // ---------- export ----------
+  let downloads = null;
+  try {
+    if (window.claude && typeof window.claude.use === 'function') {
+      window.claude.use('downloads').then(d => { downloads = d; }).catch(() => {});
+    }
+  } catch (e) {}
+
+  const fname = () => {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return `짤_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.png`;
+  };
+  const getBlob = () => new Promise(res => cv.toBlob(res, 'image/png'));
+
+  $('saveBtn').onclick = async () => {
+    draw();
+    const blob = await getBlob();
+    if (!blob) return toast('이미지를 만들지 못했어요');
+    if (downloads) {
+      try {
+        await downloads.save({ filename: fname(), data: blob });
+        toast('저장했어요');
+        return;
+      } catch (err) {
+        if (err && err.code === 'declined') return toast('저장을 취소했어요');
+        if (err && err.code === 'rate_limited') return toast('잠시 후 다시 눌러주세요');
+      }
+    }
+    // standalone hosting (e.g. GitHub Pages): normal browser download
+    let framed = true;
+    try { framed = window.self !== window.top; } catch (e) {}
+    if (!framed) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname();
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast('저장했어요');
+      return;
+    }
+    showModal(blob);
+  };
+
+  let modalUrl = null, modalBlob = null;
+  function showModal(blob) {
+    if (modalUrl) URL.revokeObjectURL(modalUrl);
+    modalBlob = blob;
+    modalUrl = URL.createObjectURL(blob);
+    $('outImg').src = modalUrl;
+    $('modal').classList.add('show');
+  }
+  $('closeModal').onclick = () => $('modal').classList.remove('show');
+  $('modal').addEventListener('click', e => { if (e.target.id === 'modal') $('modal').classList.remove('show'); });
+  $('copyBtn').onclick = async () => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': modalBlob })]);
+      toast('클립보드에 복사했어요 — 카톡/슬랙에 바로 붙여넣기 하세요');
+    } catch (e) { toast('이 환경에서는 복사가 안 돼요. 길게 눌러 저장해 주세요'); }
+  };
+
+  let tt;
+  function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2200); }
+
+  // ---------- init ----------
+  draw();
+  Promise.all(FONTS.map(ensureFont)).then(draw);
+  document.fonts && document.fonts.ready.then(draw);
+})();
+</script>
+</body>
+</html>
