@@ -290,9 +290,27 @@
     loaded.add(key);
   }
 
+  // Korean web fonts are split into unicode-range subsets: load the subsets
+  // for the exact characters in the text, then redraw once they arrive.
+  const loadedGlyphs = new Set();
+  function ensureGlyphs() {
+    const ft = st.font;
+    const chars = [...new Set(st.text.replace(/\s/g, ''))].join('');
+    if (!chars) return;
+    const key = ft.f + '|' + ft.w + '|' + chars;
+    if (loadedGlyphs.has(key)) return;
+    loadedGlyphs.add(key);
+    try {
+      document.fonts.load(`${ft.w} 40px "${ft.f}"`, chars)
+        .then(faces => { if (faces && faces.length) drawNow(); })
+        .catch(() => {});
+    } catch (e) {}
+  }
+
   // ---------- drawing ----------
   let lastBox = null;
-  function draw() {
+  function draw() { ensureGlyphs(); drawNow(); }
+  function drawNow() {
     const W = cv.width, H = cv.height;
     ctx.clearRect(0, 0, W, H);
     if (st.img) {
@@ -457,6 +475,8 @@
   draw();
   Promise.all(FONTS.map(ensureFont)).then(draw);
   document.fonts && document.fonts.ready.then(draw);
+  // any late-arriving font subset triggers a redraw
+  try { document.fonts.addEventListener('loadingdone', () => drawNow()); } catch (e) {}
 })();
 </script>
 </body>
